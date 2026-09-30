@@ -1,6 +1,6 @@
 # Oficina Pyxel — Coleta da Moeda
 
-Oficina prática de programação em Python na qual os alunos são guiados na construção conjunta de um jogo, partindo dos conceitos mais básicos e avançando gradualmente para movimentação, gravidade, colisões, uso de sprites com animações e lógica de jogo.
+Oficina prática de programação em Python na qual os alunos constroem um jogo, avançando de conceitos básicos para movimentação, gravidade, colisões, sprites, animações e lógica de jogo.
 
 ## Duração
 
@@ -8,11 +8,9 @@ Oficina prática de programação em Python na qual os alunos são guiados na co
 
 ## Objetivos
 
-Durante a oficina, os alunos irão trabalhar com:
-
-* Loop principal de um jogo
-* Eventos e entrada do teclado
-* `Clock` e controle do tempo
+* Loop principal
+* Eventos e teclado
+* `Clock` e tempo
 * `Rect` e coordenadas
 * Movimentação
 * Gravidade e pulo
@@ -21,7 +19,7 @@ Durante a oficina, os alunos irão trabalhar com:
 * Listas e múltiplos objetos
 * Estados do jogo
 * Salas e transições
-* Condições de vitória e derrota
+* Vitória e derrota
 
 ---
 
@@ -35,25 +33,19 @@ Durante a oficina, os alunos irão trabalhar com:
 
 ## Instalação
 
-Instale o Pygame:
-
 ```bash
 python -m pip install pygame
 ```
 
-Teste a instalação:
+Teste:
 
 ```bash
 python -c "import pygame; print(pygame.version.ver)"
 ```
 
-Se a versão do Pygame aparecer no terminal, o ambiente está pronto.
-
 ---
 
-# 2. Estrutura do projeto
-
-No início da oficina, o projeto terá esta estrutura:
+# 2. Estrutura
 
 ```text
 coleta-da-moeda/
@@ -67,24 +59,17 @@ coleta-da-moeda/
     └── cenario/
 ```
 
-O arquivo `helper.py` contém funções auxiliares para esconder detalhes técnicos do Pygame.
-
-O arquivo `base.py` será usado como ponto de partida para a construção do jogo.
+* `helper.py` — funções auxiliares.
+* `base.py` — ponto de partida do jogo.
 
 ---
 
 # 3. `helper.py`
 
-## 🛠️ Arquivo auxiliar: `helper.py`
-
-O arquivo `helper.py` contém funções auxiliares usadas durante a oficina.
-
-Ele é fornecido pronto para que o foco da oficina fique na **construção da lógica do jogo**, e não na implementação de funções de suporte.
-
-> **Não é necessário modificar o `helper.py` durante a oficina.**
+Arquivo fornecido pela oficina.
 
 <details>
-<summary>📄 Clique para visualizar e copiar o helper.py</summary>
+<summary>📄 Clique para visualizar e copiar</summary>
 
 ```python
 import os
@@ -264,8 +249,7 @@ def carregar_frames_auto(
     limiar_branco=235
 ):
     """
-    Carrega spritesheet automaticamente,
-    detectando os frames visíveis.
+    Carrega spritesheet automaticamente.
     """
     _exigir_janela()
 
@@ -454,33 +438,11 @@ class Animador:
 
 </details>
 
-### Por que o `helper.py` fica separado?
-
-Durante a oficina, os alunos vão trabalhar a partir do `base.py`.
-
-O `helper.py` já fornece recursos como:
-
-* criação da janela;
-* fontes e textos;
-* carregamento de imagens;
-* carregamento de sprites;
-* animações;
-* repetição de texturas.
-
-Assim, quando aparecer algo como:
-
-```python
-tela = criar_janela(800, 400, "Coleta da Moeda")
-```
-
-o foco fica em **entender o que o jogo está fazendo**, sem precisar interromper a atividade para explicar toda a implementação interna de `criar_janela()`.
-
-> **Importante:** mesmo estando oculto, o código acima pode ser expandido pelo GitHub ao clicar em **"Clique para visualizar e copiar o helper.py"**.
-
+---
 
 # 4. `base.py`
 
-O `base.py` começa com apenas a estrutura básica do jogo.
+Ponto de partida:
 
 ```python
 import sys
@@ -534,22 +496,6 @@ def main():
 
     clock = pygame.time.Clock()
 
-    # TODO:
-    # Criar estado do jogo
-
-    # TODO:
-    # Criar jogador
-
-    # TODO:
-    # Criar chão
-
-    # TODO:
-    # Criar moeda
-
-    # TODO:
-    # Criar inimigo
-
-
     while True:
 
         dt_ms = clock.tick(60)
@@ -568,48 +514,15 @@ def main():
                 pygame.quit()
                 sys.exit()
 
-            # TODO:
-            # Eventos de teclado
-
 
         # ====================================================
         # LÓGICA
         # ====================================================
 
-        # TODO:
-        # Movimento
-
-        # TODO:
-        # Gravidade
-
-        # TODO:
-        # Pulo
-
-        # TODO:
-        # Colisões
-
-        # TODO:
-        # Moeda
-
-        # TODO:
-        # Inimigo
-
 
         # ====================================================
         # DESENHO
         # ====================================================
-
-        # TODO:
-        # Desenhar jogador
-
-        # TODO:
-        # Desenhar chão
-
-        # TODO:
-        # Desenhar moeda
-
-        # TODO:
-        # Desenhar inimigo
 
 
         pygame.display.flip()
@@ -625,21 +538,15 @@ if __name__ == "__main__":
 
 ## 0:00–0:10 — Janela e loop
 
-Começamos entendendo:
-
-* `while True`
-* eventos
+* `while`
+* Eventos
 * `Clock`
 * FPS
-* atualização da tela
-
-O objetivo é ter uma janela funcionando.
+* Atualização da tela
 
 ---
 
 ## 0:10–0:20 — Jogador
-
-Criar o jogador usando `pygame.Rect`:
 
 ```python
 jogador = pygame.Rect(
@@ -650,8 +557,6 @@ jogador = pygame.Rect(
 )
 ```
 
-Desenhar:
-
 ```python
 pygame.draw.rect(
     tela,
@@ -660,11 +565,13 @@ pygame.draw.rect(
 )
 ```
 
+* `Rect`
+* Coordenadas
+* Desenho
+
 ---
 
 ## 0:20–0:35 — Movimentação
-
-Ler o teclado:
 
 ```python
 teclas = pygame.key.get_pressed()
@@ -676,17 +583,13 @@ if teclas[pygame.K_d]:
     jogador.x += 5
 ```
 
-Conceitos:
-
-* entrada do usuário
-* coordenadas
-* alteração da posição
+* Teclado
+* Coordenadas
+* Posição
 
 ---
 
 ## 0:35–0:40 — Chão
-
-Criar:
 
 ```python
 chao = pygame.Rect(
@@ -696,8 +599,6 @@ chao = pygame.Rect(
     50
 )
 ```
-
-Desenhar:
 
 ```python
 pygame.draw.rect(
@@ -711,27 +612,19 @@ pygame.draw.rect(
 
 ## 0:40–0:50 — Gravidade
 
-Criar:
-
 ```python
 gravidade = 1200
 jogador_vel_y = 0
 ```
 
-Converter o tempo:
-
 ```python
 dt = dt_ms / 1000
 ```
-
-Aplicar a gravidade:
 
 ```python
 jogador_vel_y += gravidade * dt
 jogador.y += jogador_vel_y * dt
 ```
-
-A ideia:
 
 ```text
 velocidade += gravidade × tempo
@@ -742,21 +635,15 @@ posição += velocidade × tempo
 
 ## 0:50–1:05 — Colisão e pulo
 
-Colisão com o chão:
-
 ```python
 if jogador.colliderect(chao):
     jogador.bottom = chao.top
     jogador_vel_y = 0
 ```
 
-Pulo:
-
 ```python
 pulando = False
 ```
-
-No evento:
 
 ```python
 if evento.type == pygame.KEYDOWN:
@@ -774,27 +661,21 @@ pulando = False
 
 ### Checkpoint
 
-Neste momento o jogo já possui:
-
-* movimento
-* gravidade
-* pulo
-* chão
-* colisão
+* Movimento
+* Gravidade
+* Pulo
+* Chão
+* Colisão
 
 ---
 
-## 1:05–1:15 — Sprite do personagem
+## 1:05–1:15 — Sprite
 
 Substituir o retângulo pelo personagem.
-
-O carregamento das imagens é feito pelo `helper.py`, permitindo que os alunos se concentrem na utilização do sprite.
 
 ---
 
 ## 1:15–1:25 — Animações
-
-Definir a animação de acordo com o estado do jogador:
 
 ```python
 if jogador_vel_y < 0:
@@ -809,8 +690,6 @@ elif teclas[pygame.K_a] or teclas[pygame.K_d]:
 else:
     animador.definir_estado("parado")
 ```
-
-Atualizar:
 
 ```python
 animador.atualizar(dt_ms)
@@ -827,8 +706,6 @@ tela.blit(
 
 ## 1:25–1:40 — Moeda
 
-Criar:
-
 ```python
 moeda = pygame.Rect(
     650,
@@ -840,30 +717,24 @@ moeda = pygame.Rect(
 moeda_coletada = False
 ```
 
-Detectar a coleta:
-
 ```python
 if not moeda_coletada:
-    
+
     if jogador.colliderect(moeda):
         moeda_coletada = True
 ```
 
-Adicionar contador:
+Contador:
 
 ```python
 moedas_coletadas = 0
 ```
-
-E:
 
 ```python
 if not moeda_coletada and jogador.colliderect(moeda):
     moeda_coletada = True
     moedas_coletadas += 1
 ```
-
-Mostrar:
 
 ```python
 desenhar_texto(
@@ -880,8 +751,6 @@ desenhar_texto(
 
 ## 1:40–1:55 — Inimigo
 
-Criar:
-
 ```python
 inimigo = pygame.Rect(
     400,
@@ -893,20 +762,14 @@ inimigo = pygame.Rect(
 inimigo_vel = 3
 ```
 
-Movimentar:
-
 ```python
 inimigo.x += inimigo_vel
 ```
-
-Fazer o inimigo voltar:
 
 ```python
 if inimigo.left <= 300 or inimigo.right >= 550:
     inimigo_vel *= -1
 ```
-
-Colisão:
 
 ```python
 if jogador.colliderect(inimigo):
@@ -915,9 +778,7 @@ if jogador.colliderect(inimigo):
 
 ---
 
-## 1:55–2:00 — Estados do jogo
-
-Criar:
+## 1:55–2:00 — Estados
 
 ```python
 INICIO = "INICIO"
@@ -927,8 +788,6 @@ VITORIA = "VITORIA"
 
 estado = INICIO
 ```
-
-Organizar:
 
 ```python
 if estado == INICIO:
@@ -948,8 +807,6 @@ elif estado == VITORIA:
 
 ## 2:00–2:10 — Salas
 
-Criar uma lista de salas:
-
 ```python
 salas = [
     {
@@ -967,13 +824,11 @@ salas = [
 ]
 ```
 
-Sala atual:
-
 ```python
 sala_atual = 0
 ```
 
-Transição pela borda direita:
+Transição:
 
 ```python
 if jogador.right >= LARGURA:
@@ -989,8 +844,6 @@ if jogador.right >= LARGURA:
 
 ## 2:10–2:20 — Plataformas
 
-Criar:
-
 ```python
 plataformas = [
     pygame.Rect(150, 300, 120, 20),
@@ -998,8 +851,6 @@ plataformas = [
     pygame.Rect(550, 300, 120, 20)
 ]
 ```
-
-Desenhar todas:
 
 ```python
 for plataforma in plataformas:
@@ -1030,14 +881,10 @@ for plataforma in plataformas:
 
 ## 2:20–2:25 — Vitória
 
-Verificar se todas as moedas foram coletadas:
-
 ```python
 if moedas_coletadas == total_moedas:
     estado = VITORIA
 ```
-
-Mostrar:
 
 ```python
 if estado == VITORIA:
@@ -1054,9 +901,7 @@ if estado == VITORIA:
 
 ---
 
-## 2:25–2:30 — Teste e exploração
-
-Nos minutos finais, os alunos podem modificar os valores do jogo.
+## 2:25–2:30 — Teste
 
 ### Gravidade
 
@@ -1064,41 +909,36 @@ Nos minutos finais, os alunos podem modificar os valores do jogo.
 gravidade = 800
 ```
 
-### Força do pulo
+### Pulo
 
 ```python
 jogador_vel_y = -600
 ```
 
-### Velocidade do inimigo
+### Inimigo
 
 ```python
 inimigo_vel = 5
 ```
 
-A ideia é experimentar e observar como pequenas mudanças no código alteram o comportamento do jogo.
-
 ---
 
-# 6. Resultado esperado
+# 6. Resultado
 
-Ao final da oficina, o jogo terá:
-
-* [x] Janela e loop principal
-* [x] Movimentação do jogador
+* [x] Janela e loop
+* [x] Movimentação
 * [x] Gravidade
 * [x] Pulo
 * [x] Colisões
-* [x] Sprite do personagem
+* [x] Sprite
 * [x] Animações
 * [x] Moedas
-* [x] Contador de moedas
+* [x] Contador
 * [x] Inimigo
-* [x] Condição de derrota
-* [x] Múltiplas salas
-* [x] Transição entre salas
+* [x] Derrota
+* [x] Salas
+* [x] Transições
 * [x] Plataformas
-* [x] Condição de vitória
+* [x] Vitória
 
-A construção começa em `base.py` e, ao longo da oficina, evolui para o jogo completo.
-::
+**`base.py` → desenvolvimento gradual → jogo completo**

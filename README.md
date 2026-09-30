@@ -75,21 +75,16 @@ O arquivo `base.py` será usado como ponto de partida para a construção do jog
 
 # 3. `helper.py`
 
-O `helper.py` já vem pronto e será utilizado durante toda a oficina.
+## 🛠️ Arquivo auxiliar: `helper.py`
 
-Ele contém ferramentas para:
+O arquivo `helper.py` contém funções auxiliares usadas durante a oficina.
 
-* Criar a janela
-* Criar fontes
-* Desenhar textos
-* Localizar arquivos
-* Carregar imagens
-* Carregar spritesheets
-* Criar animações
-* Reproduzir animações
-* Repetir texturas
+Ele é fornecido pronto para que o foco da oficina fique na **construção da lógica do jogo**, e não na implementação de funções de suporte.
 
-> Os alunos não precisam implementar essas funções durante a oficina. O objetivo é utilizar essas ferramentas para construir a lógica do jogo.
+> **Não é necessário modificar o `helper.py` durante a oficina.**
+
+<details>
+<summary>📄 Clique para visualizar e copiar o helper.py</summary>
 
 ```python
 import os
@@ -99,9 +94,9 @@ import pygame
 PASTA_BASE = os.path.dirname(os.path.abspath(__file__))
 
 
-# ============================================================
+# =========================
 # CORES
-# ============================================================
+# =========================
 
 BRANCO = (245, 245, 245)
 PRETO = (30, 30, 30)
@@ -111,9 +106,9 @@ VERMELHO = (255, 70, 70)
 AMARELO = (255, 215, 0)
 
 
-# ============================================================
+# =========================
 # JANELA E TEXTO
-# ============================================================
+# =========================
 
 def criar_janela(largura, altura, titulo="Jogo"):
     pygame.init()
@@ -125,11 +120,12 @@ def criar_janela(largura, altura, titulo="Jogo"):
 
 
 def criar_fonte(tamanho, negrito=False, nome="poppins"):
-    return pygame.font.SysFont(
-        nome,
-        tamanho,
-        bold=negrito
-    )
+    pygame.font.init()
+
+    try:
+        return pygame.font.SysFont(nome, tamanho, bold=negrito)
+    except:
+        return pygame.font.Font(None, tamanho)
 
 
 def desenhar_texto(tela, texto, fonte, cor, x, y):
@@ -142,30 +138,32 @@ def desenhar_texto(tela, texto, fonte, cor, x, y):
     tela.blit(imagem, retangulo)
 
 
-# ============================================================
+# =========================
 # CAMINHOS
-# ============================================================
+# =========================
 
 def caminho(*partes):
-    return os.path.join(
-        PASTA_BASE,
-        *partes
-    )
+    return os.path.join(PASTA_BASE, *partes)
 
 
 def _exigir_janela():
     if not pygame.display.get_surface():
         raise RuntimeError(
-            "Crie a janela antes de carregar imagens."
+            "A janela do pygame precisa ser criada antes."
         )
 
 
-# ============================================================
+# =========================
 # IMAGENS
-# ============================================================
+# =========================
 
 def carregar_imagem(arquivo, tamanho=None):
+    """
+    Carrega uma imagem.
 
+    Se o arquivo não existir, retorna None.
+    tamanho -> (largura, altura) opcional.
+    """
     _exigir_janela()
 
     caminho_arquivo = caminho(arquivo)
@@ -186,32 +184,61 @@ def carregar_imagem(arquivo, tamanho=None):
     return imagem
 
 
+def desenhar_textura(tela, imagem, retangulo):
+    """
+    Repete uma imagem para preencher um retângulo.
+    """
+    if imagem is None:
+        return
+
+    largura = imagem.get_width()
+    altura = imagem.get_height()
+
+    for y in range(
+        retangulo.top,
+        retangulo.bottom,
+        altura
+    ):
+        for x in range(
+            retangulo.left,
+            retangulo.right,
+            largura
+        ):
+            tela.blit(imagem, (x, y))
+
+
+# =========================
+# SPRITES
+# =========================
+
 def carregar_frames(
     arquivo,
     frame_w,
     frame_h=None,
     tamanho=None
 ):
-
     _exigir_janela()
 
+    caminho_arquivo = caminho(arquivo)
+
+    if not os.path.exists(caminho_arquivo):
+        return []
+
     imagem = pygame.image.load(
-        caminho(arquivo)
+        caminho_arquivo
     ).convert_alpha()
 
-    largura = imagem.get_width()
-    altura = imagem.get_height()
-
     if frame_h is None:
-        frame_h = altura
+        frame_h = imagem.get_height()
+
+    quantidade = imagem.get_width() // frame_w
 
     frames = []
 
-    for x in range(0, largura, frame_w):
-
+    for i in range(quantidade):
         frame = imagem.subsurface(
             pygame.Rect(
-                x,
+                i * frame_w,
                 0,
                 frame_w,
                 frame_h
@@ -236,34 +263,38 @@ def carregar_frames_auto(
     ignorar_rodape=0.0,
     limiar_branco=235
 ):
-
+    """
+    Carrega spritesheet automaticamente,
+    detectando os frames visíveis.
+    """
     _exigir_janela()
 
+    caminho_arquivo = caminho(arquivo)
+
+    if not os.path.exists(caminho_arquivo):
+        return []
+
     imagem = pygame.image.load(
-        caminho(arquivo)
+        caminho_arquivo
     ).convert_alpha()
 
-    largura = imagem.get_width()
-    altura = imagem.get_height()
+    largura, altura = imagem.get_size()
 
-    limite_y = int(
+    limite_altura = int(
         altura * (1 - ignorar_rodape)
     )
 
-    colunas_visiveis = []
+    colunas = []
 
     for x in range(largura):
+        tem_conteudo = False
 
-        encontrou = False
-
-        for y in range(limite_y):
-
+        for y in range(limite_altura):
             r, g, b, a = imagem.get_at((x, y))
 
             if a > 0:
-
                 if not remover_fundo_branco:
-                    encontrou = True
+                    tem_conteudo = True
                     break
 
                 if (
@@ -271,20 +302,19 @@ def carregar_frames_auto(
                     or g < limiar_branco
                     or b < limiar_branco
                 ):
-                    encontrou = True
+                    tem_conteudo = True
                     break
 
-        colunas_visiveis.append(encontrou)
+        colunas.append(tem_conteudo)
 
     grupos = []
     inicio = None
 
-    for x, visivel in enumerate(colunas_visiveis):
-
-        if visivel and inicio is None:
+    for x, tem_conteudo in enumerate(colunas):
+        if tem_conteudo and inicio is None:
             inicio = x
 
-        elif not visivel and inicio is not None:
+        elif not tem_conteudo and inicio is not None:
             grupos.append((inicio, x))
             inicio = None
 
@@ -294,15 +324,46 @@ def carregar_frames_auto(
     frames = []
 
     for esquerda, direita in grupos:
+        largura_frame = direita - esquerda
+
+        if largura_frame <= 0:
+            continue
 
         frame = imagem.subsurface(
             pygame.Rect(
                 esquerda,
                 0,
-                direita - esquerda,
-                limite_y
+                largura_frame,
+                limite_altura
             )
         ).copy()
+
+        if remover_fundo_branco:
+            pixels = pygame.PixelArray(frame)
+
+            for x in range(frame.get_width()):
+                for y in range(frame.get_height()):
+                    cor = frame.unmap_rgb(
+                        pixels[x, y]
+                    )
+
+                    if (
+                        cor.r >= limiar_branco
+                        and cor.g >= limiar_branco
+                        and cor.b >= limiar_branco
+                    ):
+                        pixels[x, y] = (
+                            0, 0, 0, 0
+                        )
+
+            del pixels
+
+        retangulo = frame.get_bounding_rect()
+
+        if retangulo.width > 0 and retangulo.height > 0:
+            frame = frame.subsurface(
+                retangulo
+            ).copy()
 
         frame = pygame.transform.scale(
             frame,
@@ -314,12 +375,7 @@ def carregar_frames_auto(
     return frames
 
 
-# ============================================================
-# ANIMAÇÃO
-# ============================================================
-
 def frame_por_tempo(frames, ms_por_frame=100):
-
     if not frames:
         return None
 
@@ -332,6 +388,10 @@ def frame_por_tempo(frames, ms_por_frame=100):
     return frames[indice]
 
 
+# =========================
+# ANIMAÇÃO
+# =========================
+
 class Animador:
 
     def __init__(
@@ -339,27 +399,22 @@ class Animador:
         animacoes,
         ms_por_frame=100
     ):
-
         self.animacoes = animacoes
-        self.estado = next(iter(animacoes))
-
         self.ms_por_frame = ms_por_frame
 
+        self.estado = None
         self.indice = 0
         self.tempo = 0
 
         self.olhando_direita = True
 
     def definir_estado(self, estado):
-
         if estado != self.estado:
-
             self.estado = estado
             self.indice = 0
             self.tempo = 0
 
     def atualizar(self, dt_ms):
-
         frames = self.animacoes.get(
             self.estado,
             []
@@ -370,16 +425,13 @@ class Animador:
 
         self.tempo += dt_ms
 
-        while self.tempo >= self.ms_por_frame:
-
-            self.tempo -= self.ms_por_frame
-            self.indice += 1
-
-            if self.indice >= len(frames):
-                self.indice = 0
+        if self.tempo >= self.ms_por_frame:
+            self.tempo = 0
+            self.indice = (
+                self.indice + 1
+            ) % len(frames)
 
     def imagem_atual(self):
-
         frames = self.animacoes.get(
             self.estado,
             []
@@ -390,51 +442,41 @@ class Animador:
 
         imagem = frames[self.indice]
 
-        if self.olhando_direita:
-            return imagem
-
-        return pygame.transform.flip(
-            imagem,
-            True,
-            False
-        )
-
-
-# ============================================================
-# TEXTURAS
-# ============================================================
-
-def desenhar_textura(
-    tela,
-    imagem,
-    retangulo
-):
-
-    if imagem is None:
-        return
-
-    largura = imagem.get_width()
-    altura = imagem.get_height()
-
-    for y in range(
-        retangulo.top,
-        retangulo.bottom,
-        altura
-    ):
-
-        for x in range(
-            retangulo.left,
-            retangulo.right,
-            largura
-        ):
-
-            tela.blit(
+        if not self.olhando_direita:
+            imagem = pygame.transform.flip(
                 imagem,
-                (x, y)
+                True,
+                False
             )
+
+        return imagem
 ```
 
----
+</details>
+
+### Por que o `helper.py` fica separado?
+
+Durante a oficina, os alunos vão trabalhar a partir do `base.py`.
+
+O `helper.py` já fornece recursos como:
+
+* criação da janela;
+* fontes e textos;
+* carregamento de imagens;
+* carregamento de sprites;
+* animações;
+* repetição de texturas.
+
+Assim, quando aparecer algo como:
+
+```python
+tela = criar_janela(800, 400, "Coleta da Moeda")
+```
+
+o foco fica em **entender o que o jogo está fazendo**, sem precisar interromper a atividade para explicar toda a implementação interna de `criar_janela()`.
+
+> **Importante:** mesmo estando oculto, o código acima pode ser expandido pelo GitHub ao clicar em **"Clique para visualizar e copiar o helper.py"**.
+
 
 # 4. `base.py`
 

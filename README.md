@@ -479,7 +479,7 @@ tela = criar_janela(
 # SPRITES
 # ============================================================
 
-SPRITE_PERSONAGEM = "sprites/personagens/proto/"
+SPRITE_PERSONAGEM = None
 
 SPRITE_INIMIGO = None
 

@@ -1,10 +1,8 @@
 """
 helper.py - funções prontas para a oficina de jogos com Pygame.
 
-Os alunos NÃO precisam mexer aqui: só importar e chamar.
+Vocês alunos NÃO precisam mexer aqui: só importar e chamar.
 
-Ordem obrigatória: criar_janela(...) primeiro, depois carregar_* (os sprites
-usam convert_alpha(), que exige uma janela já criada).
 """
 import os
 import pygame

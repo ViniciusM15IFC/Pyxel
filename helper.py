@@ -1,7 +1,7 @@
 """
 helper.py - funções prontas para a oficina de jogos com Pygame.
 
-Vocês alunos NÃO precisam mexer aqui: só importar e chamar.
+Os alunos NÃO precisam mexer aqui: só importar e chamar.
 
 Ordem obrigatória: criar_janela(...) primeiro, depois carregar_* (os sprites
 usam convert_alpha(), que exige uma janela já criada).
@@ -58,6 +58,27 @@ def _exigir_janela():
         raise RuntimeError(
             "Crie a janela antes de carregar sprites: chame criar_janela(...) primeiro."
         )
+
+
+def carregar_imagem(arquivo, tamanho=None):
+    """Carrega uma imagem única.
+
+    Se o arquivo não existir, retorna None.
+    tamanho -> (largura, altura) opcional.
+    """
+    _exigir_janela()
+
+    caminho_arquivo = caminho(arquivo)
+
+    if not os.path.exists(caminho_arquivo):
+        return None
+
+    imagem = pygame.image.load(caminho_arquivo).convert_alpha()
+
+    if tamanho:
+        imagem = pygame.transform.scale(imagem, tamanho)
+
+    return imagem
 
 
 def carregar_frames(arquivo, frame_w, frame_h=None, tamanho=None):
@@ -135,6 +156,19 @@ def carregar_frames_auto(arquivo, tamanho, remover_fundo_branco=False,
         canvas.blit(s, s.get_rect(center=(larg // 2, alt // 2)))
         frames.append(pygame.transform.scale(canvas, tamanho))
     return frames
+
+
+def desenhar_textura(tela, imagem, retangulo):
+    """Repete 'imagem' lado a lado até preencher 'retangulo'."""
+    if imagem is None:
+        return
+
+    largura = imagem.get_width()
+    altura = imagem.get_height()
+
+    for y in range(retangulo.top, retangulo.bottom, altura):
+        for x in range(retangulo.left, retangulo.right, largura):
+            tela.blit(imagem, (x, y))
 
 
 def medir_hitbox(arquivo, frame_w, frame_h=None, quadro=0):

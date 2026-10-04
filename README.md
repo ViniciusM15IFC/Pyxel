@@ -193,6 +193,7 @@ def carregar_frames_auto(arquivo, tamanho, remover_fundo_branco=False,
     sheet = pygame.image.load(caminho(arquivo)).convert_alpha()
     w, h = sheet.get_size()
 
+    # 1) limpeza opcional do fundo
     if remover_fundo_branco or ignorar_rodape:
         corte_y = int(h * (1 - ignorar_rodape))
         for x in range(w):
@@ -202,6 +203,7 @@ def carregar_frames_auto(arquivo, tamanho, remover_fundo_branco=False,
                 if y >= corte_y or (remover_fundo_branco and branco):
                     sheet.set_at((x, y), (0, 0, 0, 0))
 
+    # 2) acha as faixas de colunas que têm algum pixel visível
     ocupada = [any(sheet.get_at((x, y))[3] > 0 for y in range(h)) for x in range(w)]
     faixas, inicio = [], None
     for x, tem_pixel in enumerate(ocupada + [False]):
@@ -214,11 +216,13 @@ def carregar_frames_auto(arquivo, tamanho, remover_fundo_branco=False,
     if not faixas:
         raise ValueError(f"Nenhum sprite visível encontrado em {arquivo}")
 
+    # 3) recorta cada sprite na sua própria caixa
     sprites = []
     for x0, x1 in faixas:
         faixa = sheet.subsurface((x0, 0, x1 - x0, h))
         sprites.append(faixa.subsurface(faixa.get_bounding_rect()).copy())
 
+    # 4) centraliza todos num canvas comum e escala
     larg = max(s.get_width() for s in sprites)
     alt = max(s.get_height() for s in sprites)
     frames = []
@@ -227,11 +231,6 @@ def carregar_frames_auto(arquivo, tamanho, remover_fundo_branco=False,
         canvas.blit(s, s.get_rect(center=(larg // 2, alt // 2)))
         frames.append(pygame.transform.scale(canvas, tamanho))
     return frames
-
-
-def frame_por_tempo(frames, ms_por_frame=100):
-    """Escolhe o frame atual só pelo relógio (bom para itens simples, como a moeda)."""
-    return frames[(pygame.time.get_ticks() // ms_por_frame) % len(frames)]
 
 
 def desenhar_textura(tela, imagem, retangulo):
@@ -245,6 +244,35 @@ def desenhar_textura(tela, imagem, retangulo):
     for y in range(retangulo.top, retangulo.bottom, altura):
         for x in range(retangulo.left, retangulo.right, largura):
             tela.blit(imagem, (x, y))
+
+
+def medir_hitbox(arquivo, frame_w, frame_h=None, quadro=0):
+    """Mede, num frame de uma spritesheet, a proporção que o personagem
+    ocupa dentro do canvas — os números prontos pra tabela de PERSONAGENS.
+
+    arquivo  -> caminho relativo à pasta do projeto
+    frame_w, frame_h -> tamanho de cada frame no PNG (frame_h padrão: altura do PNG)
+    quadro   -> índice do frame a medir (0 = primeiro); use a pose "parada"
+
+    Imprime hitbox_largura e hitbox_altura (já na forma "numerador/denominador")
+    e também devolve os dois valores, caso queira usar direto no código.
+    """
+    _exigir_janela()
+    sheet = pygame.image.load(caminho(arquivo)).convert_alpha()
+    frame_h = frame_h or sheet.get_height()
+    frame = sheet.subsurface((quadro * frame_w, 0, frame_w, frame_h))
+    caixa = frame.get_bounding_rect()  # menor retângulo com pixels visíveis
+
+    print(f"{arquivo} [frame {quadro}] de {frame_w}x{frame_h}:")
+    print(f"  hitbox_largura = {caixa.width}/{frame_w}  ({caixa.width / frame_w:.3f})")
+    print(f"  hitbox_altura  = {caixa.height}/{frame_h}  ({caixa.height / frame_h:.3f})")
+
+    return caixa.width / frame_w, caixa.height / frame_h
+
+
+def frame_por_tempo(frames, ms_por_frame=100):
+    """Escolhe o frame atual só pelo relógio (bom para itens simples, como a moeda)."""
+    return frames[(pygame.time.get_ticks() // ms_por_frame) % len(frames)]
 
 
 class Animador:
@@ -288,7 +316,11 @@ class Animador:
 
 # 4. `base.py`
 
-O `base.py` começa com **marcadores indicando onde cada etapa será adicionada**. A física é baseada em tempo (`dt`), não em frames, então o jogo roda igual em qualquer taxa de quadros.
+O `base.py` tem só quatro seções fixas — **CONFIGURAÇÕES**, **SPRITES**,
+**OBJETOS E VARIÁVEIS DO JOGO** e, dentro do loop, **EVENTOS**, **LÓGICA** e
+**DESENHO**. Cada etapa do roteiro diz em qual dessas seções colar o código
+novo. A física é baseada em tempo (`dt`), não em frames, então o jogo roda
+igual em qualquer taxa de quadros.
 
 ```python
 import sys
@@ -327,11 +359,9 @@ fonte_texto = criar_fonte(32)
 # ============================================================
 # SPRITES
 # ============================================================
-#
-# Para trocar um asset, basta preencher o caminho aqui.
-# Se ficar None (ou o arquivo não existir), o jogo desenha
-# um retângulo colorido no lugar.
-# ============================================================
+
+# Caminhos da pasta do personagem e dos outros assets.
+# None = usar o desenho padrão (retângulo colorido).
 
 SPRITE_PERSONAGEM = None
 SPRITE_INIMIGO = None
@@ -350,28 +380,22 @@ def main():
 
 
     # ========================================================
-    # [1] OBJETOS E VARIÁVEIS DO JOGO
+    # OBJETOS E VARIÁVEIS DO JOGO
     # ========================================================
 
-    # Jogador
-    # Chão
-    # Gravidade
-    # Velocidade vertical
-    # Estado do pulo
+    # Jogador, chão, gravidade, velocidade vertical,
+    # estado do pulo, moeda, inimigo, estado do jogo, salas...
 
 
     while True:
 
-        # ====================================================
-        # [2] TEMPO
-        # ====================================================
-
         dt_ms = clock.tick(60)
+
         tela.fill(BRANCO)
 
 
         # ====================================================
-        # [3] EVENTOS
+        # EVENTOS
         # ====================================================
 
         for evento in pygame.event.get():
@@ -380,94 +404,30 @@ def main():
                 pygame.quit()
                 sys.exit()
 
-            # Teclas pressionadas uma vez
-            # Ex.: pulo
+            # Teclas pressionadas uma vez (ex.: pulo)
 
 
         # ====================================================
-        # [4] ENTRADA CONTÍNUA
-        # ====================================================
-
-        # A / D
-        # Direção (para o flip do sprite)
-
-
-        # ====================================================
-        # [5] FÍSICA E MOVIMENTO
+        # LÓGICA
         # ====================================================
 
         # dt = dt_ms / 1000
-        # Gravidade
-        # Movimento vertical
-        # Colisão com o chão
+        # Entrada contínua (A / D)
+        # Gravidade e movimento vertical
+        # Colisão com o chão / plataformas
+        # Moeda, inimigo, salas
+        # Estado do jogo (INICIO / JOGANDO / DERROTA / VITORIA)
+        # Animação (qual estado o Animador deve mostrar)
 
 
         # ====================================================
-        # [6] MOEDA
+        # DESENHO
         # ====================================================
 
-        # Criar moeda
-        # Detectar coleta (lembrando por sala)
-        # Contador
-
-
-        # ====================================================
-        # [7] INIMIGO
-        # ====================================================
-
-        # Movimento
-        # Limites
-        # Colisão com jogador
-
-
-        # ====================================================
-        # [8] ESTADOS DO JOGO
-        # ====================================================
-
-        # INICIO
-        # JOGANDO
-        # DERROTA
-        # VITORIA
-
-
-        # ====================================================
-        # [9] SALAS
-        # ====================================================
-
-        # Sala atual
-        # Configuração da sala
-        # Transição (direita avança, esquerda volta)
-
-
-        # ====================================================
-        # [10] PLATAFORMAS (bônus)
-        # ====================================================
-
-        # Criar
-        # Desenhar
-        # Colisão
-
-
-        # ====================================================
-        # [11] SPRITES E ANIMAÇÕES
-        # ====================================================
-
-        # Carregar personagem
-        # Animador
-        # Atualizar animação
-        # Desenhar sprite (ancorado pelos pés, NÃO esticado no Rect)
-
-
-        # ====================================================
-        # [12] DESENHO
-        # ====================================================
-
-        # Jogador
-        # Chão
-        # Moeda
-        # Inimigo
-        # Plataformas
+        # Chão, plataformas, moeda, inimigo
+        # Jogador (sprite ancorado pelos pés, NÃO esticado no Rect)
         # HUD
+        # Textos de cada tela (início, derrota, vitória)
 
 
         pygame.display.flip()
@@ -506,7 +466,7 @@ Janela abre, permanece funcionando e fecha pelo `X`.
 
 ## 0:05–0:15 — Jogador
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 jogador = pygame.Rect(
@@ -517,7 +477,7 @@ jogador = pygame.Rect(
 )
 ```
 
-### Adicionar em `[12] DESENHO`
+### Adicionar em `DESENHO`
 
 ```python
 pygame.draw.rect(
@@ -542,7 +502,7 @@ Um retângulo aparece na tela.
 
 ## 0:15–0:25 — Movimentação
 
-### Adicionar em `[4] ENTRADA CONTÍNUA`
+### Adicionar em `LÓGICA`
 
 ```python
 teclas = pygame.key.get_pressed()
@@ -568,7 +528,7 @@ Jogador anda para esquerda e direita.
 
 ## 0:25–0:30 — Chão
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 chao = pygame.Rect(
@@ -579,7 +539,7 @@ chao = pygame.Rect(
 )
 ```
 
-### Adicionar em `[12] DESENHO`
+### Adicionar em `DESENHO`
 
 ```python
 pygame.draw.rect(
@@ -597,14 +557,14 @@ Chão aparece na parte inferior da tela.
 
 ## 0:30–0:40 — Gravidade
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 gravidade = 1200       # pixels por segundo²
 jogador_vel_y = 0
 ```
 
-### Adicionar em `[5] FÍSICA E MOVIMENTO`
+### Adicionar em `LÓGICA` (no início, antes de mexer no jogador)
 
 ```python
 dt = dt_ms / 1000
@@ -633,14 +593,14 @@ Jogador cai.
 
 ## 0:40–0:55 — Colisão e pulo
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 forca_pulo = -500      # pixels por segundo
 pulando = False
 ```
 
-### Adicionar em `[5] FÍSICA E MOVIMENTO`
+### Adicionar em `LÓGICA`
 
 ```python
 if jogador.colliderect(chao):
@@ -649,7 +609,7 @@ if jogador.colliderect(chao):
     pulando = False
 ```
 
-### Adicionar em `[3] EVENTOS`
+### Adicionar em `EVENTOS`
 
 ```python
 if evento.type == pygame.KEYDOWN:
@@ -670,31 +630,69 @@ Jogador cai, para no chão e consegue pular.
 
 ## 0:55–1:10 — Sprite
 
-Substituir o retângulo do jogador pelo sprite.
+Substituir o retângulo do jogador pelo sprite. A hitbox (colisão) e o
+sprite (visual) usam tamanhos diferentes — o PNG tem margem transparente ao
+redor do personagem — então a proporção entre os dois é medida, não chutada.
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Tabela de personagens (preencher ao trocar de pack)
+
+| Personagem | Pasta | Tamanho do frame | Hitbox largura | Hitbox altura |
+|---|---|---|---|---|
+| `proto` (CraftPix) | `sprites/personagens/proto/` | 128×128 | `34/110` (0.309) | `58/110` (0.527) |
+| *seu pack aqui* | | | | |
+
+Pra medir um pack novo, use `medir_hitbox` (já está no `helper.py`), num
+frame da pose **parada**:
+
+```python
+from helper import criar_janela, medir_hitbox
+
+criar_janela(100, 100)  # só pra existir uma janela (exigência do convert_alpha)
+medir_hitbox("sprites/personagens/outro_pack/Walking.png", frame_w=64)
+```
+
+Isso imprime a fração pronta pra colar na tabela.
+
+### Adicionar em `SPRITES` (ou logo abaixo, nas configurações)
+
+```python
+PERSONAGENS = {
+    "proto": {
+        "pasta": "sprites/personagens/proto/",
+        "frame": 128,
+        "hitbox_largura": 34 / 110,
+        "hitbox_altura": 58 / 110,
+    },
+    # "outro_pack": { "pasta": ..., "frame": ..., "hitbox_largura": ..., "hitbox_altura": ... },
+}
+
+PERSONAGEM_ATUAL = "proto"
+TAMANHO_VISUAL = 150
+```
+
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 from helper import carregar_frames
 
-TAMANHO_VISUAL = 150
-HITBOX_LARGURA = int(TAMANHO_VISUAL * 34 / 110)
-HITBOX_ALTURA = int(TAMANHO_VISUAL * 58 / 110)
+cfg = PERSONAGENS[PERSONAGEM_ATUAL]
+HITBOX_LARGURA = int(TAMANHO_VISUAL * cfg["hitbox_largura"])
+HITBOX_ALTURA = int(TAMANHO_VISUAL * cfg["hitbox_altura"])
 
 jogador = pygame.Rect(100, 350 - HITBOX_ALTURA, HITBOX_LARGURA, HITBOX_ALTURA)
 
 def frames(arquivo):
     return carregar_frames(
-        f"{SPRITE_PERSONAGEM}{arquivo}",
-        frame_w=128,
-        frame_h=128,
+        f"{cfg['pasta']}{arquivo}",
+        frame_w=cfg["frame"],
+        frame_h=cfg["frame"],
         tamanho=(TAMANHO_VISUAL, TAMANHO_VISUAL)
     )
 
 sprite_parado = frames("Walking.png")[0]
 ```
 
-### Adicionar em `[12] DESENHO` (no lugar do `draw.rect` do jogador)
+### Adicionar em `DESENHO` (no lugar do `draw.rect` do jogador)
 
 ```python
 tela.blit(sprite_parado, sprite_parado.get_rect(midbottom=jogador.midbottom))
@@ -705,6 +703,7 @@ tela.blit(sprite_parado, sprite_parado.get_rect(midbottom=jogador.midbottom))
 * `convert_alpha` / transparência
 * recorte de spritesheet
 * `blit`
+* por que a hitbox é medida, não chutada
 
 ### ⚠️ Atenção — a pegadinha mais comum da oficina
 
@@ -715,7 +714,8 @@ para os braços e pernas se moverem na animação). Se você desenhar o sprite
 A correção é usar **dois tamanhos diferentes**: a hitbox (colisão, pequena)
 e o sprite (visual, maior), ancorando o desenho pelos **pés**
 (`midbottom`) em vez de preencher o `Rect` inteiro — é o que o código acima
-já faz.
+já faz. A tabela de personagens existe justamente pra guardar essa proporção
+já medida, pra quem trocar de pack não precisar adivinhar de novo.
 
 ### Checkpoint
 
@@ -725,7 +725,7 @@ O personagem aparece no lugar do retângulo, parado em cima do chão.
 
 ## 1:10–1:25 — Animações
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 from helper import Animador
@@ -740,7 +740,7 @@ animacoes = {
 animador = Animador(animacoes, "parado")
 ```
 
-### Adicionar em `[4] ENTRADA CONTÍNUA`
+### Adicionar em `LÓGICA` (junto da entrada contínua)
 
 ```python
 movendo = False
@@ -756,7 +756,7 @@ if teclas[pygame.K_d]:
     movendo = True
 ```
 
-### Adicionar em `[11] SPRITES E ANIMAÇÕES`
+### Adicionar em `LÓGICA` (depois da física, já sabendo se `pulando` e `movendo`)
 
 ```python
 if pulando and jogador_vel_y < 0:
@@ -771,7 +771,7 @@ else:
 animador.atualizar(dt_ms)
 ```
 
-### Adicionar em `[12] DESENHO` (substitui o `sprite_parado` fixo)
+### Adicionar em `DESENHO` (substitui o `sprite_parado` fixo)
 
 ```python
 sprite_atual = animador.imagem_atual()
@@ -786,7 +786,7 @@ Personagem troca de animação conforme o movimento, e vira de lado ao mudar de 
 
 ## 1:25–1:40 — Moeda
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 moeda = pygame.Rect(
@@ -800,7 +800,7 @@ moeda_coletada = False
 moedas_coletadas = 0
 ```
 
-### Adicionar em `[6] MOEDA`
+### Adicionar em `LÓGICA`
 
 ```python
 if not moeda_coletada:
@@ -809,7 +809,7 @@ if not moeda_coletada:
         moedas_coletadas += 1
 ```
 
-### Adicionar em `[12] DESENHO`
+### Adicionar em `DESENHO`
 
 ```python
 if not moeda_coletada:
@@ -824,7 +824,7 @@ Moeda desaparece ao ser coletada e contador aumenta.
 
 ## 1:40–1:55 — Inimigo
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 inimigo = pygame.Rect(
@@ -837,7 +837,7 @@ inimigo = pygame.Rect(
 inimigo_vel = 3
 ```
 
-### Adicionar em `[7] INIMIGO`
+### Adicionar em `LÓGICA`
 
 ```python
 inimigo.x += inimigo_vel
@@ -853,6 +853,12 @@ if jogador.colliderect(inimigo):
     estado = DERROTA
 ```
 
+### Adicionar em `DESENHO`
+
+```python
+pygame.draw.rect(tela, VERMELHO, inimigo)
+```
+
 ### Checkpoint
 
 Inimigo patrulha e pode atingir o jogador.
@@ -864,7 +870,7 @@ Inimigo patrulha e pode atingir o jogador.
 Essa etapa reorganiza tudo que já foi escrito dentro de blocos por estado —
 reserve o tempo todo, é mais trabalhosa do que parece.
 
-### Adicionar em `[8] ESTADOS DO JOGO`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 INICIO = "INICIO"
@@ -878,10 +884,10 @@ estado = INICIO
 ### Trabalhar
 
 * Separar a **lógica** (física, colisões, moeda, inimigo) dentro de
-  `if estado == JOGANDO: ...`
+  `if estado == JOGANDO: ...`, em `LÓGICA`
 * Separar o **desenho** de cada tela (`INICIO`, `DERROTA`, `VITORIA`) usando
-  `desenhar_texto`
-* `ENTER` reinicia o jogo a partir de `INICIO`, `DERROTA` ou `VITORIA`
+  `desenhar_texto`, em `DESENHO`
+* `ENTER` reinicia o jogo a partir de `INICIO`, `DERROTA` ou `VITORIA`, em `EVENTOS`
 
 ### Checkpoint
 
@@ -891,7 +897,7 @@ Jogo possui início, gameplay, derrota e vitória, e dá pra reiniciar com ENTER
 
 ## 2:10–2:20 — Salas (com volta)
 
-### Adicionar em `[1] OBJETOS E VARIÁVEIS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 salas = [
@@ -907,7 +913,7 @@ coletada_na_sala = [False] * len(salas)   # lembra o que já foi pego em cada sa
 moeda.x, moeda.y = salas[sala_atual]["moeda"]
 ```
 
-### Adicionar em `[9] SALAS` — transição nos dois sentidos
+### Adicionar em `LÓGICA` — transição nos dois sentidos
 
 ```python
 if jogador.right >= LARGURA and sala_atual < len(salas) - 1:
@@ -921,7 +927,7 @@ elif jogador.left <= 0 and sala_atual > 0:
     moeda.x, moeda.y = salas[sala_atual]["moeda"]
 ```
 
-### Ajustar em `[6] MOEDA`
+### Ajustar em `LÓGICA` (etapa da Moeda)
 
 ```python
 if not coletada_na_sala[sala_atual] and jogador.colliderect(moeda):
@@ -932,7 +938,7 @@ if not coletada_na_sala[sala_atual] and jogador.colliderect(moeda):
         estado = VITORIA
 ```
 
-### Ajustar em `[12] DESENHO`
+### Ajustar em `DESENHO`
 
 ```python
 if not coletada_na_sala[sala_atual]:
@@ -955,7 +961,7 @@ Jogador consegue ir e voltar entre as salas, e nenhuma moeda fica impossível de
 
 ## 2:20–2:30 — Vitória + buffer de ajustes
 
-### Na tela de vitória
+### Em `DESENHO`, na tela de vitória
 
 ```python
 if estado == VITORIA:
@@ -995,7 +1001,7 @@ Coletar todas as moedas leva à vitória. Jogo completo, do início ao fim.
 
 Fica fora do cronograma principal: o jogo já funciona sem isso. Oferecer como desafio pra quem acabar cedo.
 
-### Adicionar em `[10] PLATAFORMAS`
+### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
 plataformas = [
@@ -1005,14 +1011,14 @@ plataformas = [
 ]
 ```
 
-Desenhar:
+### Adicionar em `DESENHO`
 
 ```python
 for plataforma in plataformas:
     pygame.draw.rect(tela, VERDE, plataforma)
 ```
 
-Colisão (só enquanto o jogador está caindo, pra não grudar nela por baixo):
+### Adicionar em `LÓGICA` (colisão só enquanto o jogador está caindo, pra não grudar nela por baixo)
 
 ```python
 for plataforma in plataformas:

@@ -3,6 +3,8 @@ helper.py - funções prontas para a oficina de jogos com Pygame.
 
 Vocês alunos NÃO precisam mexer aqui: só importar e chamar.
 
+Ordem obrigatória: criar_janela(...) primeiro, depois carregar_* (os sprites
+usam convert_alpha(), que exige uma janela já criada).
 """
 import os
 import pygame
@@ -57,25 +59,6 @@ def _exigir_janela():
             "Crie a janela antes de carregar sprites: chame criar_janela(...) primeiro."
         )
 
-def carregar_imagem(arquivo, tamanho=None):
-    """Carrega uma imagem única.
-
-    Se o arquivo não existir, retorna None.
-    tamanho -> (largura, altura) opcional.
-    """
-    _exigir_janela()
-
-    caminho_arquivo = caminho(arquivo)
-
-    if not os.path.exists(caminho_arquivo):
-        return None
-
-    imagem = pygame.image.load(caminho_arquivo).convert_alpha()
-
-    if tamanho:
-        imagem = pygame.transform.scale(imagem, tamanho)
-
-    return imagem
 
 def carregar_frames(arquivo, frame_w, frame_h=None, tamanho=None):
     """Corta uma spritesheet HORIZONTAL com frames do mesmo tamanho.
@@ -154,20 +137,34 @@ def carregar_frames_auto(arquivo, tamanho, remover_fundo_branco=False,
     return frames
 
 
+def medir_hitbox(arquivo, frame_w, frame_h=None, quadro=0):
+    """Mede, num frame de uma spritesheet, a proporção que o personagem
+    ocupa dentro do canvas — os números prontos pra tabela de PERSONAGENS.
+
+    arquivo  -> caminho relativo à pasta do projeto
+    frame_w, frame_h -> tamanho de cada frame no PNG (frame_h padrão: altura do PNG)
+    quadro   -> índice do frame a medir (0 = primeiro); use a pose "parada"
+
+    Imprime hitbox_largura e hitbox_altura (já na forma "numerador/denominador")
+    e também devolve os dois valores, caso queira usar direto no código.
+    """
+    _exigir_janela()
+    sheet = pygame.image.load(caminho(arquivo)).convert_alpha()
+    frame_h = frame_h or sheet.get_height()
+    frame = sheet.subsurface((quadro * frame_w, 0, frame_w, frame_h))
+    caixa = frame.get_bounding_rect()  # menor retângulo com pixels visíveis
+
+    print(f"{arquivo} [frame {quadro}] de {frame_w}x{frame_h}:")
+    print(f"  hitbox_largura = {caixa.width}/{frame_w}  ({caixa.width / frame_w:.3f})")
+    print(f"  hitbox_altura  = {caixa.height}/{frame_h}  ({caixa.height / frame_h:.3f})")
+
+    return caixa.width / frame_w, caixa.height / frame_h
+
+
 def frame_por_tempo(frames, ms_por_frame=100):
     """Escolhe o frame atual só pelo relógio (bom para itens simples, como a moeda)."""
     return frames[(pygame.time.get_ticks() // ms_por_frame) % len(frames)]
 
-def desenhar_textura(tela, imagem, retangulo):
-    if imagem is None:
-        return
-
-    largura = imagem.get_width()
-    altura = imagem.get_height()
-
-    for y in range(retangulo.top, retangulo.bottom, altura):
-        for x in range(retangulo.left, retangulo.right, largura):
-            tela.blit(imagem, (x, y))
 
 class Animador:
     """Controla qual frame mostrar (para personagens com vários estados).

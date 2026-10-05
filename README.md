@@ -56,8 +56,7 @@ coleta-da-moeda/
     ├── personagens/
     │   └── proto/
     ├── inimigos/
-    ├── moeda/
-    └── cenario/
+    └── moeda/
 ```
 
 * `helper.py` — funções auxiliares fornecidas pela oficina.

@@ -398,6 +398,8 @@ from helper import (
     criar_janela,
     criar_fonte,
     desenhar_texto,
+    carregar_personagem,
+    Animador,
     BRANCO,
     PRETO,
     AZUL,

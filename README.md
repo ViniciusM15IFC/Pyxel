@@ -246,9 +246,46 @@ def desenhar_textura(tela, imagem, retangulo):
             tela.blit(imagem, (x, y))
 
 
+def carregar_personagem(pasta, frame, tamanho_visual, animacoes_arquivos):
+    """Carrega as animações de um personagem E calcula a hitbox automaticamente,
+    medindo a margem transparente no 1º frame da pose "parado".
+
+    pasta              -> ex.: "sprites/personagens/proto/"
+    frame              -> tamanho do frame no PNG (frames quadrados, ex.: 128)
+    tamanho_visual     -> tamanho final do sprite na tela (int)
+    animacoes_arquivos -> dict {"estado": ("arquivo.png", quantidade_de_frames)}
+                          quantidade_de_frames=None usa todos os frames do arquivo.
+                          Precisa ter a chave "parado" (é nela que a hitbox é medida).
+
+    Devolve (animacoes, hitbox_largura, hitbox_altura) — já prontos pra criar
+    o Rect do jogador e o Animador. Troca de personagem é só trocar 'pasta'
+    e 'frame': a hitbox se ajusta sozinha, sem precisar medir nada à mão.
+    """
+    _exigir_janela()
+
+    # mede a hitbox no frame 0 da pose "parado"
+    arquivo_parado, _ = animacoes_arquivos["parado"]
+    sheet_parado = pygame.image.load(caminho(f"{pasta}{arquivo_parado}")).convert_alpha()
+    frame0 = sheet_parado.subsurface((0, 0, frame, frame))
+    caixa = frame0.get_bounding_rect()
+    hitbox_largura = max(1, int(tamanho_visual * caixa.width / frame))
+    hitbox_altura = max(1, int(tamanho_visual * caixa.height / frame))
+
+    # carrega cada animação
+    animacoes = {}
+    for estado, (arquivo, n_frames) in animacoes_arquivos.items():
+        todos = carregar_frames(f"{pasta}{arquivo}", frame, frame,
+                                (tamanho_visual, tamanho_visual))
+        animacoes[estado] = todos[:n_frames] if n_frames else todos
+
+    return animacoes, hitbox_largura, hitbox_altura
+
+
 def medir_hitbox(arquivo, frame_w, frame_h=None, quadro=0):
-    """Mede, num frame de uma spritesheet, a proporção que o personagem
-    ocupa dentro do canvas — os números prontos pra tabela de PERSONAGENS.
+    """Ferramenta de diagnóstico: mostra no terminal a proporção que um
+    personagem ocupa dentro do canvas. Não é necessária no dia a dia —
+    carregar_personagem() já mede isso sozinha — mas ajuda a entender
+    o número ou a investigar um sprite com margem incomum.
 
     arquivo  -> caminho relativo à pasta do projeto
     frame_w, frame_h -> tamanho de cada frame no PNG (frame_h padrão: altura do PNG)
@@ -632,64 +669,37 @@ Jogador cai, para no chão e consegue pular.
 
 Substituir o retângulo do jogador pelo sprite. A hitbox (colisão) e o
 sprite (visual) usam tamanhos diferentes — o PNG tem margem transparente ao
-redor do personagem — então a proporção entre os dois é medida, não chutada.
+redor do personagem — mas a proporção entre os dois é **calculada
+automaticamente** pelo `carregar_personagem`, no momento em que o jogo
+carrega. Não precisa medir nada à mão.
 
-### Tabela de personagens (preencher ao trocar de pack)
-
-| Personagem | Pasta | Tamanho do frame | Hitbox largura | Hitbox altura |
-|---|---|---|---|---|
-| `proto` (CraftPix) | `sprites/personagens/proto/` | 128×128 | `34/110` (0.309) | `58/110` (0.527) |
-| *seu pack aqui* | | | | |
-
-Pra medir um pack novo, use `medir_hitbox` (já está no `helper.py`), num
-frame da pose **parada**:
+### Adicionar em `SPRITES`
 
 ```python
-from helper import criar_janela, medir_hitbox
-
-criar_janela(100, 100)  # só pra existir uma janela (exigência do convert_alpha)
-medir_hitbox("sprites/personagens/outro_pack/Walking.png", frame_w=64)
-```
-
-Isso imprime a fração pronta pra colar na tabela.
-
-### Adicionar em `SPRITES` (ou logo abaixo, nas configurações)
-
-```python
-PERSONAGENS = {
-    "proto": {
-        "pasta": "sprites/personagens/proto/",
-        "frame": 128,
-        "hitbox_largura": 34 / 110,
-        "hitbox_altura": 58 / 110,
-    },
-    # "outro_pack": { "pasta": ..., "frame": ..., "hitbox_largura": ..., "hitbox_altura": ... },
-}
-
-PERSONAGEM_ATUAL = "proto"
-TAMANHO_VISUAL = 150
+SPRITE_PERSONAGEM = "sprites/personagens/proto/"
 ```
 
 ### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
 
 ```python
-from helper import carregar_frames
+from helper import carregar_personagem
 
-cfg = PERSONAGENS[PERSONAGEM_ATUAL]
-HITBOX_LARGURA = int(TAMANHO_VISUAL * cfg["hitbox_largura"])
-HITBOX_ALTURA = int(TAMANHO_VISUAL * cfg["hitbox_altura"])
+TAMANHO_VISUAL = 150
+
+animacoes, HITBOX_LARGURA, HITBOX_ALTURA = carregar_personagem(
+    SPRITE_PERSONAGEM,
+    frame=128,
+    tamanho_visual=TAMANHO_VISUAL,
+    animacoes_arquivos={
+        "parado": ("Walking.png", 1),   # o pack não tem "idle"
+        "correndo": ("Running.png", None),
+        "pulando": ("Jumping.png", None),
+        "caindo": ("Falling.png", None),
+    }
+)
 
 jogador = pygame.Rect(100, 350 - HITBOX_ALTURA, HITBOX_LARGURA, HITBOX_ALTURA)
-
-def frames(arquivo):
-    return carregar_frames(
-        f"{cfg['pasta']}{arquivo}",
-        frame_w=cfg["frame"],
-        frame_h=cfg["frame"],
-        tamanho=(TAMANHO_VISUAL, TAMANHO_VISUAL)
-    )
-
-sprite_parado = frames("Walking.png")[0]
+sprite_parado = animacoes["parado"][0]
 ```
 
 ### Adicionar em `DESENHO` (no lugar do `draw.rect` do jogador)
@@ -703,7 +713,7 @@ tela.blit(sprite_parado, sprite_parado.get_rect(midbottom=jogador.midbottom))
 * `convert_alpha` / transparência
 * recorte de spritesheet
 * `blit`
-* por que a hitbox é medida, não chutada
+* por que a hitbox é medida (`get_bounding_rect`), não chutada
 
 ### ⚠️ Atenção — a pegadinha mais comum da oficina
 
@@ -714,8 +724,14 @@ para os braços e pernas se moverem na animação). Se você desenhar o sprite
 A correção é usar **dois tamanhos diferentes**: a hitbox (colisão, pequena)
 e o sprite (visual, maior), ancorando o desenho pelos **pés**
 (`midbottom`) em vez de preencher o `Rect` inteiro — é o que o código acima
-já faz. A tabela de personagens existe justamente pra guardar essa proporção
-já medida, pra quem trocar de pack não precisar adivinhar de novo.
+já faz. `carregar_personagem` mede essa proporção sozinha no 1º frame da
+pose "parado", então trocar de personagem é só trocar `SPRITE_PERSONAGEM`
+(e `frame`, se o pack novo usar outro tamanho de canvas) — a hitbox se
+ajusta sem precisar medir nada de novo.
+
+Se algum pack der uma hitbox estranha (a pose "parada" tem um braço muito
+esticado, por exemplo), `medir_hitbox` no `helper.py` serve pra investigar
+o número manualmente.
 
 ### Checkpoint
 
@@ -729,13 +745,6 @@ O personagem aparece no lugar do retângulo, parado em cima do chão.
 
 ```python
 from helper import Animador
-
-animacoes = {
-    "parado": frames("Walking.png")[0:1],  # o pack não tem "idle"
-    "correndo": frames("Running.png"),
-    "pulando": frames("Jumping.png"),
-    "caindo": frames("Falling.png"),
-}
 
 animador = Animador(animacoes, "parado")
 ```
@@ -1038,7 +1047,21 @@ Jogador consegue pousar nas plataformas e utilizá-las para avançar.
 
 ---
 
-# 6. Resultado esperado
+# 6. Trocando de personagem (opcional, pra quem quiser)
+
+Como a hitbox é calculada automaticamente, trocar de sprite é só:
+
+1. Colocar a pasta nova em `sprites/personagens/<novo_pack>/`
+2. Mudar `SPRITE_PERSONAGEM` pra apontar pra ela
+3. Ajustar `frame=` se o pack usar um tamanho de canvas diferente de 128
+4. Ajustar os nomes dos arquivos em `animacoes_arquivos` se o pack usar nomes diferentes (ex.: `Idle.png` em vez de `Walking.png`)
+
+Nada mais muda — `carregar_personagem` mede a hitbox de novo sozinha a
+partir do frame 0 da pose "parado" do pack novo.
+
+---
+
+# 7. Resultado esperado
 
 * [ ] Janela e loop
 * [ ] Movimentação

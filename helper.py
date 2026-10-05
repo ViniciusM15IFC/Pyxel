@@ -171,9 +171,46 @@ def desenhar_textura(tela, imagem, retangulo):
             tela.blit(imagem, (x, y))
 
 
+def carregar_personagem(pasta, frame, tamanho_visual, animacoes_arquivos):
+    """Carrega as animações de um personagem E calcula a hitbox automaticamente,
+    medindo a margem transparente no 1º frame da pose "parado".
+
+    pasta              -> ex.: "sprites/personagens/proto/"
+    frame              -> tamanho do frame no PNG (frames quadrados, ex.: 128)
+    tamanho_visual     -> tamanho final do sprite na tela (int)
+    animacoes_arquivos -> dict {"estado": ("arquivo.png", quantidade_de_frames)}
+                          quantidade_de_frames=None usa todos os frames do arquivo.
+                          Precisa ter a chave "parado" (é nela que a hitbox é medida).
+
+    Devolve (animacoes, hitbox_largura, hitbox_altura) — já prontos pra criar
+    o Rect do jogador e o Animador. Troca de personagem é só trocar 'pasta'
+    e 'frame': a hitbox se ajusta sozinha, sem precisar medir nada à mão.
+    """
+    _exigir_janela()
+
+    # mede a hitbox no frame 0 da pose "parado"
+    arquivo_parado, _ = animacoes_arquivos["parado"]
+    sheet_parado = pygame.image.load(caminho(f"{pasta}{arquivo_parado}")).convert_alpha()
+    frame0 = sheet_parado.subsurface((0, 0, frame, frame))
+    caixa = frame0.get_bounding_rect()
+    hitbox_largura = max(1, int(tamanho_visual * caixa.width / frame))
+    hitbox_altura = max(1, int(tamanho_visual * caixa.height / frame))
+
+    # carrega cada animação
+    animacoes = {}
+    for estado, (arquivo, n_frames) in animacoes_arquivos.items():
+        todos = carregar_frames(f"{pasta}{arquivo}", frame, frame,
+                                (tamanho_visual, tamanho_visual))
+        animacoes[estado] = todos[:n_frames] if n_frames else todos
+
+    return animacoes, hitbox_largura, hitbox_altura
+
+
 def medir_hitbox(arquivo, frame_w, frame_h=None, quadro=0):
-    """Mede, num frame de uma spritesheet, a proporção que o personagem
-    ocupa dentro do canvas — os números prontos pra tabela de PERSONAGENS.
+    """Ferramenta de diagnóstico: mostra no terminal a proporção que um
+    personagem ocupa dentro do canvas. Não é necessária no dia a dia —
+    carregar_personagem() já mede isso sozinha — mas ajuda a entender
+    o número ou a investigar um sprite com margem incomum.
 
     arquivo  -> caminho relativo à pasta do projeto
     frame_w, frame_h -> tamanho de cada frame no PNG (frame_h padrão: altura do PNG)

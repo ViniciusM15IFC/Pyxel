@@ -777,3 +777,12 @@ do frame 0 da pose `"parado"` do pack.
 * [ ] (Bônus) Plataformas
 
 **`base.py` → desenvolvimento gradual → jogo completo**
+
+## Créditos dos assets
+
+Os sprites utilizados nesta oficina foram disponibilizados pela CraftPix
+e são utilizados de acordo com os termos da licença da plataforma:
+
+https://craftpix.net/file-licenses/
+
+Os assets não são de autoria dos organizadores da oficina.

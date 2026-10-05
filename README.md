@@ -1644,37 +1644,3 @@ do frame 0 da pose `"parado"` do pack.
 * [ ] (Bônus) Plataformas
 
 **`base.py` → desenvolvimento gradual → jogo completo**
-
-# 6. Trocando de personagem (opcional, pra quem quiser)
-
-Como a hitbox é calculada automaticamente, trocar de sprite é só:
-
-1. Colocar a pasta nova em `sprites/personagens/<novo_pack>/`
-2. Mudar `SPRITE_PERSONAGEM` pra apontar pra ela
-3. Ajustar `frame=` se o pack usar um tamanho de canvas diferente de 128
-4. Ajustar os nomes dos arquivos em `animacoes_arquivos` se o pack usar nomes diferentes (ex.: `Idle.png` em vez de `Walking.png`)
-
-Nada mais muda — `carregar_personagem` mede a hitbox de novo sozinha a
-partir do frame 0 da pose "parado" do pack novo.
-
----
-
-# 7. Resultado esperado
-
-* [ ] Janela e loop
-* [ ] Movimentação
-* [ ] Gravidade
-* [ ] Pulo
-* [ ] Colisões
-* [ ] Sprite
-* [ ] Animações
-* [ ] Moedas
-* [ ] Contador
-* [ ] Inimigo
-* [ ] Estados
-* [ ] Salas (ida e volta)
-* [ ] Vitória
-* [ ] Derrota
-* [ ] (Bônus) Plataformas
-
-**`base.py` → desenvolvimento gradual → jogo completo**

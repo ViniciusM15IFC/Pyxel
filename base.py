@@ -1,10 +1,15 @@
 import sys
 import pygame
 
-from helper import (
+from pyxel_helper import (
     criar_janela,
     criar_fonte,
     desenhar_texto,
+    carregar_personagem,
+    carregar_frames,
+    carregar_frames_grade,
+    frame_por_tempo,
+    Animador,
     BRANCO,
     PRETO,
     AZUL,
@@ -86,7 +91,6 @@ def main():
         # LÓGICA
         # ====================================================
 
-        # dt = dt_ms / 1000
         # Entrada contínua (A / D)
         # Gravidade e movimento vertical
         # Colisão com o chão / plataformas

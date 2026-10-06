@@ -15,7 +15,7 @@ Oficina prática de programação em Python na qual os alunos constroem um jogo,
 * Movimentação
 * Gravidade e pulo
 * Colisões
-* Sprites e animações
+* Sprites e animações (jogador, inimigo e moeda)
 * Listas e múltiplos objetos
 * Estados do jogo
 * Salas e transições (nos dois sentidos)
@@ -54,14 +54,44 @@ coleta-da-moeda/
 ├── base.py
 └── sprites/
     ├── personagens/
-    │   └── proto/
+    │   └── proto/          (e os outros packs opcionais)
     ├── inimigos/
-    ├── moeda/
-    └── cenario/
+    │   └── orc.png
+    └── moeda/
+        └── moeda_sheet.png
 ```
 
 * `pyxel_helper.py` — funções auxiliares fornecidas pela oficina.
 * `base.py` — arquivo desenvolvido durante a oficina.
+
+> ⚠️ O arquivo precisa se chamar **`pyxel_helper.py`** (com underscore).
+> Com hífen (`pyxel-helper.py`) o Python não consegue importá-lo e o
+> `base.py` falha logo na primeira linha com `ModuleNotFoundError`.
+
+---
+
+# 3. O que tem no `pyxel_helper.py`
+
+Os alunos não precisam abrir esse arquivo. Esta tabela é para o instrutor
+saber o que é usado no roteiro e o que é recurso extra.
+
+| Função / classe | Usada no roteiro? | Para quê |
+| --- | --- | --- |
+| `criar_janela`, `criar_fonte`, `desenhar_texto` | Sim | Janela, fontes e textos centralizados |
+| `carregar_personagem` | Sim (0:50) | Carrega as animações do jogador e mede a hitbox sozinha |
+| `Animador` | Sim (0:50) | Escolhe o frame do jogador conforme o estado de animação |
+| `carregar_frames_grade` | Sim (1:35) | Corta o `orc.png` (grade de 8 células de 100×100) |
+| `carregar_frames_auto` | Sim (1:20) | Corta o `moeda_sheet.png` (frames de larguras diferentes, fundo branco) |
+| `frame_por_tempo` | Sim (1:20 e 1:35) | Escolhe o frame de moeda e Orc pelo relógio |
+| `carregar_imagem` | Não | Imagem única (útil para cenário e itens sem animação) |
+| `carregar_frames` | Não (usada internamente) | Sheet horizontal com frames de tamanho igual |
+| `desenhar_textura` | Não | Repete uma imagem para preencher um `Rect` (chão com textura) |
+| `medir_hitbox` | Não | Diagnóstico: imprime a proporção que um sprite ocupa no canvas |
+
+As funções marcadas "Não" ficam disponíveis como **recurso extra** para quem
+terminar antes (por exemplo, usar `carregar_imagem` e `desenhar_textura` para
+dar textura ao chão). Chão e plataformas, no caminho principal, são retângulos
+coloridos.
 
 ---
 
@@ -71,10 +101,8 @@ O arquivo auxiliar da oficina é **`pyxel_helper.py`**. As funções e classes n
 
 O `base.py` tem quatro seções fixas — **CONFIGURAÇÕES**, **SPRITES**,
 **OBJETOS E VARIÁVEIS DO JOGO** e, dentro do loop, **EVENTOS**, **LÓGICA** e
-**DESENHO**. As funções e classes da oficina já são importadas no início do
-arquivo, então durante a aula o foco fica no código do jogo. Cada etapa do
-roteiro indica em qual seção inserir ou ajustar o código. A física é baseada
-em tempo (`dt`), não em frames.
+**DESENHO**. Cada etapa do roteiro indica em qual seção inserir ou ajustar o
+código. A física é baseada em tempo (`dt`), não em frames.
 
 ```python
 import sys
@@ -85,7 +113,9 @@ from pyxel_helper import (
     criar_fonte,
     desenhar_texto,
     carregar_personagem,
-    carregar_imagem,
+    carregar_frames_grade,
+    carregar_frames_auto,
+    frame_por_tempo,
     Animador,
     BRANCO,
     PRETO,
@@ -117,14 +147,12 @@ fonte_texto = criar_fonte(32)
 # SPRITES
 # ============================================================
 
-# Caminhos da pasta do personagem e dos outros assets.
-# None = usar o desenho padrão (retângulo colorido).
+# Caminhos dos assets. Cada um é preenchido na etapa em que passa
+# a ser usado (None = ainda não usado, o jogo usa um retângulo colorido).
+# Chão e plataformas são sempre retângulos coloridos (sem sprite).
 
 SPRITE_PERSONAGEM = None
-SPRITE_INIMIGO = "sprites/inimigos/inimigo.png"
-SPRITE_MOEDA = "sprites/moeda/moeda.png"
-SPRITE_CHAO = None
-SPRITE_PLATAFORMA = None
+SPRITE_INIMIGO = None
 SPRITE_MOEDA = None
 
 
@@ -221,6 +249,10 @@ travar (física, sprites/animações e estados) recebem mais tempo.
 > Um estado não está completo enquanto essas três partes não estiverem
 > coerentes entre si.
 
+> **Gabarito:** o arquivo `jogo_completo.py` é o `base.py` com todas as
+> etapas feitas. Use-o para conferir o resultado final (não entregue aos
+> alunos).
+
 ---
 
 ## 0:00–0:05 — Clock, loop e janela em branco
@@ -287,6 +319,17 @@ if teclas[pygame.K_d]:
     jogador.x += 5
 ```
 
+### Adicionar em `DESENHO`
+
+Por enquanto o jogador é só um **quadrado azul temporário** — o próprio
+`Rect` desenhado na tela. Ele será trocado pelo sprite na etapa de 0:50.
+
+```python
+pygame.draw.rect(tela, AZUL, jogador)
+```
+
+Sem essa linha o `Rect` existe, mas é invisível: a tela fica em branco.
+
 ### Trabalhar
 
 * `Rect`
@@ -332,8 +375,16 @@ A lógica e o desenho do jogo passam a ser executados apenas quando:
 
 ```python
 if estado == JOGANDO:
-    # ...
+    # LÓGICA: movimento do jogador (A / D)
 ```
+
+```python
+if estado == JOGANDO:
+    # DESENHO: o quadrado temporário do jogador
+    pygame.draw.rect(tela, AZUL, jogador)
+```
+
+Cada novo elemento do jogo entra nesses dois blocos (`LÓGICA` e `DESENHO`).
 
 ### Checkpoint
 
@@ -358,11 +409,18 @@ chao = pygame.Rect(
 )
 ```
 
+No `DESENHO`:
+
+```python
+pygame.draw.rect(tela, VERDE, chao)
+```
+
 ### Gravidade
 
 ```python
 gravidade = 1200
 jogador_vel_y = 0
+pulando = False
 ```
 
 ```python
@@ -407,23 +465,97 @@ Jogador cai, para no chão e consegue pular.
 
 ---
 
-## 0:50–1:20 — Sprites e animações
+## 0:50–1:20 — Sprites e animações do jogador
 
 ### Objetivo
 
-Substituir os desenhos provisórios por sprites e fazer o personagem se
-animação conforme sua ação.
+Substituir o retângulo azul por sprites e fazer o personagem se animar
+conforme sua ação.
 
 ### Personagem
 
 O `Rect` continua representando a hitbox. O sprite representa o visual.
 
+Em `SPRITES`:
+
 ```python
 SPRITE_PERSONAGEM = "sprites/personagens/proto/"
 ```
 
-Usar `carregar_personagem()` para carregar as animações e criar a hitbox a
-partir do personagem.
+`carregar_personagem()` carrega as animações **e** devolve a largura e a
+altura da hitbox, medidas automaticamente a partir do personagem.
+
+Em `OBJETOS E VARIÁVEIS DO JOGO` (isto **substitui** o `jogador = pygame.Rect(...)`
+fixo de antes — o `chao` precisa já existir acima):
+
+```python
+animacoes, hit_w, hit_h = carregar_personagem(
+    SPRITE_PERSONAGEM,
+    128,    # tamanho do frame no PNG
+    96,     # tamanho do sprite na tela
+    {
+        "parado":   ("Walking.png", 1),
+        "correndo": ("Running.png", None),
+        "pulando":  ("Jumping.png", None),
+        "caindo":   ("Falling.png", None),
+    },
+)
+
+jogador = pygame.Rect(100, 0, hit_w, hit_h)
+jogador.bottom = chao.top
+
+animador = Animador(animacoes, "parado")
+```
+
+### Direção e estado de animação
+
+Em `LÓGICA`, a entrada contínua passa a guardar se o jogador está andando e
+para que lado olha:
+
+```python
+andando = False
+
+if teclas[pygame.K_a]:
+    jogador.x -= 5
+    animador.olhando_direita = False
+    andando = True
+
+if teclas[pygame.K_d]:
+    jogador.x += 5
+    animador.olhando_direita = True
+    andando = True
+```
+
+No fim da `LÓGICA` (ainda dentro de `if estado == JOGANDO`), escolha a animação:
+
+```python
+if pulando or jogador_vel_y > 200:
+    if jogador_vel_y < 0:
+        animador.definir_estado("pulando")
+    else:
+        animador.definir_estado("caindo")
+elif andando:
+    animador.definir_estado("correndo")
+else:
+    animador.definir_estado("parado")
+
+animador.atualizar(dt_ms)
+```
+
+> Por que `jogador_vel_y > 200` e não `> 0`? Com o jogador parado no chão, a
+> gravidade acumula um pouquinho de velocidade a cada frame até o `Rect`
+> andar 1 pixel e a colisão zerar tudo. Com `> 0` a animação de "caindo"
+> ficaria piscando no chão. O limite de 200 só é atingido numa queda de
+> verdade (e também serve para quem andar para fora de uma plataforma).
+
+### Desenho
+
+Em `DESENHO`, no lugar do `pygame.draw.rect(tela, AZUL, jogador)`:
+
+```python
+img = animador.imagem_atual()
+tela.blit(img, img.get_rect(midbottom=jogador.midbottom))
+```
 
 ### Trabalhar
 
@@ -456,20 +588,16 @@ sprite.get_rect(midbottom=jogador.midbottom)
 
 ---
 
-## 1:20–1:35 — Moeda e contador
+## 1:20–1:35 — Moeda e contador (retângulo → sprite animado)
 
 ### Objetivo
 
-Adicionar o primeiro objetivo do jogador e introduzir sprites para objetos
-do cenário.
+Adicionar o primeiro objetivo do jogador. Primeiro a moeda aparece como um
+**quadrado amarelo temporário**; depois trocamos por uma moeda que gira.
 
-### Configuração
+### Parte 1 — Moeda temporária
 
-```python
-SPRITE_MOEDA = "sprites/moeda/moeda.png"
-```
-
-### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
+Em `OBJETOS E VARIÁVEIS DO JOGO`:
 
 ```python
 moeda = pygame.Rect(
@@ -481,17 +609,9 @@ moeda = pygame.Rect(
 
 moeda_coletada = False
 moedas_coletadas = 0
-
-sprite_moeda = carregar_imagem(
-    SPRITE_MOEDA,
-    tamanho=(40, 40)
-)
 ```
 
-`carregar_imagem()` retorna `None` se o arquivo não existir. Assim, podemos
-manter um desenho provisório enquanto o asset não estiver disponível.
-
-### Coleta
+Em `LÓGICA` (coleta):
 
 ```python
 if not moeda_coletada and jogador.colliderect(moeda):
@@ -499,63 +619,99 @@ if not moeda_coletada and jogador.colliderect(moeda):
     moedas_coletadas += 1
 ```
 
-### Desenho
+Em `DESENHO` (quadrado amarelo + contador na tela):
 
 ```python
 if not moeda_coletada:
-    if sprite_moeda:
-        tela.blit(
-            sprite_moeda,
-            sprite_moeda.get_rect(center=moeda.center)
-        )
-    else:
-        pygame.draw.rect(tela, AMARELO, moeda)
+    pygame.draw.rect(tela, AMARELO, moeda)
+
+desenhar_texto(
+    tela,
+    f"Moedas: {moedas_coletadas}",
+    fonte_texto,
+    PRETO,
+    LARGURA // 2,
+    30
+)
 ```
+
+**Checkpoint da parte 1:** o quadrado amarelo aparece, some ao ser coletado e
+o contador no topo aumenta.
+
+### Parte 2 — Trocar pelo sprite animado
+
+Em `SPRITES`:
+
+```python
+SPRITE_MOEDA = "sprites/moeda/moeda_sheet.png"
+```
+
+Em `OBJETOS E VARIÁVEIS DO JOGO`, acrescente:
+
+```python
+frames_moeda = carregar_frames_auto(
+    SPRITE_MOEDA,
+    (40, 40),
+    remover_fundo_branco=True,
+    ignorar_rodape=0.15
+)
+```
+
+O `moeda_sheet.png` tem fundo branco opaco, frames de larguras diferentes e
+uma faixa de texto na base. Por isso usamos `carregar_frames_auto`: ele acha
+cada moeda sozinho, apaga o fundo branco e ignora os 15% de baixo da imagem.
+Ele é um pouco lento (varre os pixels), então os frames são carregados **uma
+vez**, antes do loop — nunca dentro dele.
+
+Em `DESENHO`, **no lugar** do `pygame.draw.rect(tela, AMARELO, moeda)`:
+
+```python
+if not moeda_coletada:
+    img = frame_por_tempo(frames_moeda, 100)
+    tela.blit(img, img.get_rect(center=moeda.center))
+```
+
+`frame_por_tempo(frames, 100)` troca de frame a cada 100 ms, usando só o
+relógio — por isso a moeda gira sem precisar de um `Animador`. A coleta
+continua usando o `Rect` `moeda` como hitbox.
 
 ### Trabalhar
 
-* `carregar_imagem()`
-* sprite de imagem única
+* hitbox (`Rect`) x visual (sprite)
+* spritesheet com frames irregulares
+* animação pelo tempo (`frame_por_tempo`)
 * colisão com a moeda
-* variáveis de contagem
+* variáveis de contagem e HUD
 
 ### Checkpoint
 
-A moeda aparece como sprite, desaparece ao ser coletada e o contador aumenta.
+A moeda aparece girando, desaparece ao ser coletada e o contador aumenta.
 
 ---
 
-## 1:35–1:50 — Inimigo e trajetória
+## 1:35–1:50 — Inimigo e trajetória (retângulo → Orc animado)
 
 ### Objetivo
 
-Criar um objeto com comportamento próprio e usar um sprite para representá-lo.
+Criar um objeto com comportamento próprio. Primeiro como um **quadrado
+vermelho temporário**; depois trocamos por um Orc animado.
 
-### Configuração
+### Parte 1 — Inimigo temporário
 
-```python
-SPRITE_INIMIGO = "sprites/inimigos/inimigo.png"
-```
-
-### Adicionar em `OBJETOS E VARIÁVEIS DO JOGO`
+Em `OBJETOS E VARIÁVEIS DO JOGO`:
 
 ```python
 inimigo = pygame.Rect(
     400,
-    300,
-    40,
-    50
+    310,
+    50,
+    40
 )
 
 inimigo_vel = 3
-
-sprite_inimigo = carregar_imagem(
-    SPRITE_INIMIGO,
-    tamanho=(60, 60)
-)
 ```
 
-### Movimento e trajetória
+Em `LÓGICA` (movimento e trajetória):
 
 ```python
 inimigo.x += inimigo_vel
@@ -564,28 +720,68 @@ if inimigo.left <= 300 or inimigo.right >= 550:
     inimigo_vel *= -1
 ```
 
-### Colisão
+Em `LÓGICA` (colisão):
 
 ```python
 if jogador.colliderect(inimigo):
     estado = DERROTA
 ```
 
-### Desenho
+Em `DESENHO`:
 
 ```python
-if sprite_inimigo:
-    tela.blit(
-        sprite_inimigo,
-        sprite_inimigo.get_rect(midbottom=inimigo.midbottom)
-    )
-else:
-    pygame.draw.rect(tela, VERMELHO, inimigo)
+pygame.draw.rect(tela, VERMELHO, inimigo)
+```
+
+> Até a etapa de 1:50 ainda não existe tela de derrota: ao encostar no
+> inimigo o jogo vai para `DERROTA` e a tela fica em branco (o desenho e a
+> lógica só rodam em `JOGANDO`). É esperado — feche a janela e abra de novo
+> para testar outra vez.
+
+**Checkpoint da parte 1:** o quadrado vermelho percorre a trajetória entre
+x = 300 e x = 550 e, ao encostar nele, o jogo para.
+
+### Parte 2 — Trocar pelo Orc animado
+
+Em `SPRITES`:
+
+```python
+SPRITE_INIMIGO = "sprites/inimigos/orc.png"
+```
+
+Em `OBJETOS E VARIÁVEIS DO JOGO`, acrescente:
+
+```python
+frames_orc = carregar_frames_grade(
+    SPRITE_INIMIGO,
+    100,
+    100,
+    (60, 60)
+)
+```
+
+O `orc.png` é uma grade de 8 células de 100×100, com um Orc pequeno no meio
+de cada uma. `carregar_frames_grade` corta cada célula, remove a margem
+transparente, alinha os pés e mantém a proporção (o Orc cabe em 60×60 sem
+ficar esticado). A hitbox (50×40) tem o tamanho aproximado do Orc na tela.
+
+Em `DESENHO`, **no lugar** do `pygame.draw.rect(tela, VERMELHO, inimigo)`.
+O sprite do Orc olha para a direita; quando ele anda para a esquerda,
+espelhamos a imagem:
+
+```python
+img = frame_por_tempo(frames_orc, 120)
+
+if inimigo_vel < 0:
+    img = pygame.transform.flip(img, True, False)
+
+tela.blit(img, img.get_rect(midbottom=inimigo.midbottom))
 ```
 
 ### Checkpoint
 
-Inimigo aparece com sprite, percorre sua trajetória e pode atingir o jogador.
+O Orc aparece animado, percorre sua trajetória (virando para o lado em que
+anda) e pode atingir o jogador.
 
 ---
 
@@ -593,6 +789,14 @@ Inimigo aparece com sprite, percorre sua trajetória e pode atingir o jogador.
 
 Agora os estados apresentados anteriormente passam a controlar o fluxo
 completo do jogo.
+
+### Estado inicial
+
+Agora o jogo passa a começar na tela de início:
+
+```python
+estado = INICIO
+```
 
 ### Entrada
 
@@ -614,6 +818,7 @@ jogador.x = 100
 jogador.bottom = chao.top
 jogador_vel_y = 0
 pulando = False
+animador.olhando_direita = True
 moeda_coletada = False
 moedas_coletadas = 0
 inimigo.x = 400
@@ -622,8 +827,24 @@ inimigo_vel = 3
 
 ### Desenho
 
-Criar as telas de `INICIO` e `DERROTA` com `desenhar_texto()`. A lógica de
-gameplay continua protegida por:
+Em `DESENHO`, o que é desenhado passa a depender do `estado`. O que já
+existia (chão, moeda, inimigo, jogador, contador) vai dentro do `elif estado == JOGANDO`:
+
+```python
+if estado == INICIO:
+    desenhar_texto(tela, "Coleta da Moeda", fonte_titulo, PRETO, LARGURA // 2, 140)
+    desenhar_texto(tela, "Pressione ENTER para jogar", fonte_texto, AZUL, LARGURA // 2, 230)
+
+elif estado == JOGANDO:
+    # chão, moeda, inimigo, jogador e contador (tudo que já existia)
+    ...
+
+elif estado == DERROTA:
+    desenhar_texto(tela, "Você perdeu!", fonte_titulo, VERMELHO, LARGURA // 2, 140)
+    desenhar_texto(tela, "Pressione ENTER para reiniciar", fonte_texto, PRETO, LARGURA // 2, 230)
+```
+
+A lógica de gameplay continua protegida por:
 
 ```python
 if estado == JOGANDO:
@@ -654,7 +875,8 @@ Aumentar o espaço do jogo e preparar diferentes desafios.
 ### Salas
 
 Criar três salas e permitir passagem pelas bordas nos dois sentidos. Cada
-sala possui sua própria posição de moeda e seu estado de coleta.
+sala possui sua própria moeda, o seu próprio estado de coleta e o seu próprio
+inimigo.
 
 ```text
 ┌──────────┐   ↔   ┌──────────┐   ↔   ┌──────────┐
@@ -663,10 +885,172 @@ sala possui sua própria posição de moeda e seu estado de coleta.
 └──────────┘       └──────────┘       └──────────┘
 ```
 
+A ideia central: **o estado de cada sala mora na própria sala** (um
+dicionário), e o jogo só guarda *em qual sala o jogador está*. É isso que
+faz a moeda coletada continuar coletada quando o jogador volta.
+
+Faça em três passos curtos, conferindo o jogo funcionando entre eles.
+
+### Passo 1 — Mover moeda e inimigo para dentro das salas
+
+Em `OBJETOS E VARIÁVEIS DO JOGO`, **apague** as variáveis soltas `moeda`,
+`moeda_coletada`, `inimigo` e `inimigo_vel` e crie no lugar:
+
+```python
+def criar_salas():
+    return [
+        {   # Sala 1: moeda
+            "moeda": pygame.Rect(650, 300, 30, 30),
+            "coletada": False,
+            "inimigo": None,
+            "inimigo_vel": 0,
+        },
+        {   # Sala 2: inimigo
+            "moeda": None,
+            "coletada": False,
+            "inimigo": pygame.Rect(400, 310, 50, 40),
+            "inimigo_vel": 3,
+        },
+        {   # Sala 3: moeda
+            "moeda": pygame.Rect(650, 300, 30, 30),
+            "coletada": False,
+            "inimigo": None,
+            "inimigo_vel": 0,
+        },
+    ]
+
+
+salas = criar_salas()
+sala_atual = 0
+
+moedas_coletadas = 0
+total_moedas = sum(1 for s in salas if s["moeda"] is not None)
+```
+
+`total_moedas` é calculado a partir da lista: se você mudar as salas, o total
+acompanha sozinho. `moedas_coletadas` continua sendo um contador único do jogo.
+
+Agora a `LÓGICA` e o `DESENHO` passam a olhar para a **sala atual**. No começo
+do bloco de moeda/inimigo da `LÓGICA`:
+
+```python
+sala = salas[sala_atual]
+```
+
+**Moeda** (`LÓGICA`):
+
+```python
+moeda = sala["moeda"]
+
+if (
+    moeda is not None
+    and not sala["coletada"]
+    and jogador.colliderect(moeda)
+):
+    sala["coletada"] = True
+    moedas_coletadas += 1
+```
+
+**Inimigo** (`LÓGICA`):
+
+```python
+inimigo = sala["inimigo"]
+
+if inimigo is not None:
+    inimigo.x += sala["inimigo_vel"]
+
+    if inimigo.left <= 300 or inimigo.right >= 550:
+        sala["inimigo_vel"] *= -1
+
+    if jogador.colliderect(inimigo):
+        estado = DERROTA
+```
+
+**Desenho** (`DESENHO`, também começando com `sala = salas[sala_atual]`):
+
+```python
+if sala["moeda"] is not None and not sala["coletada"]:
+    img = frame_por_tempo(frames_moeda, 100)
+    tela.blit(img, img.get_rect(center=sala["moeda"].center))
+
+if sala["inimigo"] is not None:
+    img = frame_por_tempo(frames_orc, 120)
+
+    if sala["inimigo_vel"] < 0:
+        img = pygame.transform.flip(img, True, False)
+
+    tela.blit(img, img.get_rect(midbottom=sala["inimigo"].midbottom))
+```
+
+**Reset** (no bloco de `ENTER` do `EVENTOS`): troque as linhas que resetavam
+moeda e inimigo por:
+
+```python
+salas = criar_salas()
+sala_atual = 0
+moedas_coletadas = 0
+```
+
+**Checkpoint do passo 1:** o jogo se comporta como antes, mas ainda com uma
+única sala (a sala 1, com a moeda). Se o Orc ainda precisar aparecer para
+testar a derrota, troque temporariamente `sala_atual = 1`.
+
+### Passo 2 — Passar de sala nas bordas (ida e volta)
+
+Em `LÓGICA`, logo depois da colisão com o chão e **antes** de
+`sala = salas[sala_atual]`:
+
+```python
+if jogador.right > LARGURA:
+    if sala_atual < len(salas) - 1:
+        sala_atual += 1
+        jogador.left = 0
+    else:
+        jogador.right = LARGURA
+
+if jogador.left < 0:
+    if sala_atual > 0:
+        sala_atual -= 1
+        jogador.right = LARGURA
+    else:
+        jogador.left = 0
+```
+
+* Saiu pela direita → próxima sala, entrando pela esquerda.
+* Saiu pela esquerda → sala anterior, entrando pela direita.
+* Nas bordas do mundo (sala 1 à esquerda, sala 3 à direita) o jogador é
+  segurado, sem sair da tela.
+
+Se o jogador passar direto pela moeda da sala 1, ele pode **voltar**; e como
+o estado de coleta mora na sala, a moeda não "trava": ela continua lá até ser
+pega, e não reaparece depois de coletada.
+
+### Passo 3 — HUD com a sala
+
+Em `DESENHO`, **no lugar** do contador `Moedas: ...` da etapa de 1:20:
+
+```python
+desenhar_texto(
+    tela,
+    f"Moedas: {moedas_coletadas}/{total_moedas}   Sala {sala_atual + 1}/{len(salas)}",
+    fonte_texto,
+    PRETO,
+    LARGURA // 2,
+    30
+)
+```
+
+### Checkpoint
+
+O jogador consegue ir e voltar entre as salas. Uma moeda já coletada não
+reaparece ao retornar. Uma moeda **não coletada** continua esperando quando o
+jogador volta. O Orc só existe (e só machuca) na sala 2.
+
 ### Plataformas
 
 As plataformas ficam como extensão opcional caso a turma esteja adiantada.
-Elas introduzem caminhos verticais e novas situações de colisão.
+Elas introduzem caminhos verticais e novas situações de colisão. Veja o
+Bônus ao final.
 
 ```python
 plataformas = [
@@ -676,25 +1060,32 @@ plataformas = [
 ]
 ```
 
-### Checkpoint
-
-O jogador consegue ir e voltar entre as salas. Uma moeda já coletada não
-reaparece ao retornar.
-
 ---
 
 ## 2:20–2:30 — Vitória + buffer
 
 ### Vitória
 
-Ao coletar todas as moedas das salas:
+A vitória é verificada **no momento em que uma moeda é coletada** (dentro do
+`if` da coleta, no passo 1 das Salas):
 
 ```python
+sala["coletada"] = True
+moedas_coletadas += 1
+
 if moedas_coletadas == total_moedas:
     estado = VITORIA
 ```
 
-Depois, desenhar a tela de vitória.
+Depois, em `EVENTOS`, deixe o `ENTER` também funcionar em `VITORIA`
+(`if estado == INICIO or estado == DERROTA or estado == VITORIA:`) e, em
+`DESENHO`, acrescente a tela de vitória:
+
+```python
+elif estado == VITORIA:
+    desenhar_texto(tela, "Você venceu!", fonte_titulo, AMARELO, LARGURA // 2, 140)
+    desenhar_texto(tela, "Pressione ENTER para jogar de novo", fonte_texto, PRETO, LARGURA // 2, 230)
+```
 
 ### Fluxo final
 
@@ -707,7 +1098,7 @@ JOGANDO
    │
    ├── inimigo → DERROTA ── ENTER ──→ JOGANDO
    │
-   └── todas as moedas → VITORIA
+   └── todas as moedas → VITORIA ── ENTER ──→ JOGANDO
 ```
 
 ### Buffer
@@ -723,6 +1114,8 @@ tempo.
 Se a turma terminar antes, implemente a colisão das plataformas para que o
 jogador consiga pousar nelas. Isso fica fora do caminho obrigatório da oficina.
 
+Em `LÓGICA`, logo depois da colisão com o chão:
+
 ```python
 for plataforma in plataformas:
     if (
@@ -734,6 +1127,13 @@ for plataforma in plataformas:
         jogador.bottom = plataforma.top
         jogador_vel_y = 0
         pulando = False
+```
+
+Em `DESENHO`:
+
+```python
+for plataforma in plataformas:
+    pygame.draw.rect(tela, AZUL, plataforma)
 ```
 
 ### Checkpoint
@@ -748,9 +1148,10 @@ Como a hitbox é calculada automaticamente, trocar de sprite é só:
 
 1. Colocar a pasta nova em `sprites/personagens/<novo_pack>/`
 2. Mudar `SPRITE_PERSONAGEM` para apontar para ela
-3. Ajustar `frame=` se o pack usar um tamanho de canvas diferente de 128
-4. Ajustar os nomes dos arquivos em `animacoes_arquivos` se o pack usar nomes
-   diferentes (ex.: `Idle.png` em vez de `Walking.png`)
+3. Ajustar o `128` (tamanho do frame) na chamada de `carregar_personagem` se o
+   pack usar um tamanho de canvas diferente
+4. Ajustar os nomes dos arquivos no dicionário de animações se o pack usar
+   nomes diferentes (ex.: `Idle.png` em vez de `Walking.png`)
 
 Nada mais muda — `carregar_personagem` mede a hitbox de novo sozinha a partir
 do frame 0 da pose `"parado"` do pack.
@@ -766,17 +1167,15 @@ do frame 0 da pose `"parado"` do pack.
 * [ ] Pulo e colisões
 * [ ] Sprite e hitbox do jogador
 * [ ] Animações do jogador
-* [ ] Sprite da moeda
-* [ ] Moeda e contador
-* [ ] Sprite do inimigo
-* [ ] Inimigo e trajetória
+* [ ] Moeda animada e contador
+* [ ] Inimigo (Orc animado) e trajetória
 * [ ] Tela de derrota
 * [ ] Reinício com `ENTER`
-* [ ] Salas (ida e volta)
+* [ ] Salas (ida e volta, estado de coleta por sala)
 * [ ] Vitória
 * [ ] (Bônus) Plataformas
 
-**`base.py` → desenvolvimento gradual → jogo completo**
+**`base.py` → desenvolvimento gradual → jogo completo (`jogo_completo.py`)**
 
 ## Créditos dos assets
 

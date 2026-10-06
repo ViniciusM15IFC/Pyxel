@@ -158,6 +158,66 @@ def carregar_frames_auto(arquivo, tamanho, remover_fundo_branco=False,
     return frames
 
 
+def carregar_frames_grade(arquivo, frame_w, frame_h, tamanho, alinhar="base"):
+    """Para spritesheets em GRADE (tamanho de cada célula já conhecido), em
+    que cada célula tem uma margem transparente grande e desigual ao redor
+    do personagem — ex.: orc.png, 8 células de ~100x100 com um Orc bem menor
+    dentro de cada uma.
+
+    Diferença para carregar_frames_auto: aqui a grade já é conhecida
+    (frame_w x frame_h), então cada célula é cortada primeiro, e só DEPOIS
+    a margem transparente é removida de dentro dela — sem risco de pegar
+    pedaço da célula vizinha. Use carregar_frames_auto só quando nem o
+    tamanho nem o espaçamento dos frames forem regulares.
+
+    arquivo  -> caminho relativo à pasta do projeto
+    frame_w, frame_h -> tamanho de CADA CÉLULA da grade no PNG
+    tamanho  -> (largura_max, altura_max) — o espaço em que o sprite deve
+                CABER. A proporção original é mantida: se o personagem for
+                mais largo que alto (ou vice-versa), o resultado final é
+                menor que 'tamanho' numa das dimensões, nunca esticado.
+    alinhar  -> "base" (padrão — alinha pelos pés, pra não "pular" na
+                animação) ou "centro"
+    """
+    _exigir_janela()
+    sheet = pygame.image.load(caminho(arquivo)).convert_alpha()
+    n_celulas = sheet.get_width() // frame_w
+
+    # 1) corta a grade e recorta cada célula na sua própria área visível
+    recortes = []
+    for i in range(n_celulas):
+        celula = sheet.subsurface((i * frame_w, 0, frame_w, frame_h))
+        caixa = celula.get_bounding_rect()
+        if caixa.width == 0 or caixa.height == 0:
+            continue  # célula vazia, ignora
+        recortes.append(celula.subsurface(caixa).copy())
+
+    if not recortes:
+        raise ValueError(f"Nenhum sprite visível encontrado em {arquivo}")
+
+    # 2) canvas comum (o maior recorte manda no tamanho)
+    larg = max(r.get_width() for r in recortes)
+    alt = max(r.get_height() for r in recortes)
+
+    # 3) escala MANTENDO A PROPORÇÃO: o lado que "sobraria" é reduzido
+    #    junto, em vez de esticar o canvas pra um tamanho exato
+    escala = min(tamanho[0] / larg, tamanho[1] / alt)
+    tamanho_final = (round(larg * escala), round(alt * escala))
+
+    # 4) posiciona cada recorte no canvas (alinhado pela base ou pelo
+    #    centro) e escala todos pro mesmo tamanho final
+    frames = []
+    for r in recortes:
+        canvas = pygame.Surface((larg, alt), pygame.SRCALPHA)
+        if alinhar == "base":
+            canvas.blit(r, r.get_rect(midbottom=(larg // 2, alt)))
+        else:
+            canvas.blit(r, r.get_rect(center=(larg // 2, alt // 2)))
+        frames.append(pygame.transform.scale(canvas, tamanho_final))
+
+    return frames
+
+
 def desenhar_textura(tela, imagem, retangulo):
     """Repete 'imagem' lado a lado até preencher 'retangulo'."""
     if imagem is None:
